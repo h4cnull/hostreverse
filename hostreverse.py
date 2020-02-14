@@ -227,17 +227,27 @@ def is_ip(ip):
     return False
 
 def multi_dns_resolver(domain,dns_servers):
+	tmp = {}
 	reverse_result = {domain:[]}
 	for dnsip in dns_servers:
 		my_resolver = dns.resolver.Resolver()
-		my_resolver.nameservers = [dnsip]
-		try:
-			answer = my_resolver.query(domain,lifetime=3)
-		except:
-			continue
+		my_resolver.nameservers = [dnsip.split()[1]]
+		count = 2
+		answer = []
+		while count > 0:
+			try:
+				answer = my_resolver.query(domain,lifetime=5)
+				break
+			except Exception as e:
+				#print(e)
+				count -= 1
 		for A in answer:
-			if A.address not in reverse_result[domain]:
-				reverse_result[domain].append(A.address)
+			if A.address in tmp:
+				tmp[A.address] += " " + dnsip.split()[0]
+			if A.address not in tmp:
+				tmp[A.address] = dnsip.split()[0]
+	for key in tmp:
+		reverse_result[domain].append(key + " " + tmp[key])
 	return reverse_result
 
 def get_proxy(url):
@@ -334,13 +344,13 @@ if __name__ == "__main__":
 		filename = sys.argv[1]
 		rst_file_name_pre = os.path.split(filename)[1].split(".")[0]
 	except Exception as e:
-		print(e)
+		#print(e)
 		print("[+] Usage: %s hostfile" % sys.argv[0])
 		sys.exit(0)
 	
 	dns_servers = []
-	with open(".\\dns\\dns_servers.txt", 'r') as f:
-		dns_servers = list(set([line.strip().split()[1] for line in f.readlines()]))
+	with open(".\\dns\\dns_servers.txt", 'r', encoding='utf-8') as f:
+		dns_servers = list(set([line.strip() for line in f.readlines()]))
 
 	host_list = []
 	with open(filename,'r') as f:
@@ -364,7 +374,7 @@ if __name__ == "__main__":
 			continue
 		rst = ""
 		for line in result[key]:
-			rst = rst + line + " "
-		print("[+] %s %s" % (key,rst))
+			rst = rst + line + "\n\t"
+		print("[+] %s\n\t%s" % (key,rst))
 		with open(rst_file_name_pre+"_found_result.txt",'a+') as f:
 			f.write("%s %s\n" % (key,rst))
